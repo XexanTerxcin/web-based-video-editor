@@ -37,7 +37,19 @@ const state = {
   activeKeyframeId:null,
   texts:[],
   selectedTextId:null,
-  dragging:null
+  dragging:null,
+  mediaLibrary:[],
+  activeMediaId:null,
+  replaceMediaPending:false,
+  media:{
+    fileName:'',
+    fileType:'',
+    fileSize:0,
+    width:0,
+    height:0,
+    duration:0,
+    status:'No media loaded'
+  }
 };
 
 /* ---------------- Video element (hidden, source of truth) ---------------- */
@@ -427,6 +439,265 @@ render();
 const dropZone = $('#drop-zone');
 const fileInput = $('#file-input');
 
+function formatBytes(bytes){
+  if(!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
+  const units=['B','KB','MB','GB'];
+  const idx = Math.min(Math.floor(Math.log(bytes)/Math.log(1024)), units.length-1);
+  const value = bytes / (1024 ** idx);
+  return `${value >= 10 || idx === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[idx]}`;
+}
+
+function getMediaKind(file){
+  const type = (file && file.type) || '';
+  if(type.startsWith('video/')) return 'video';
+  if(type.startsWith('audio/')) return 'audio';
+  if(type.startsWith('image/')) return 'image';
+  const ext = (file && file.name && file.name.split('.').pop().toLowerCase()) || '';
+  if(['mp4','webm','mov','m4v','avi','mkv'].includes(ext)) return 'video';
+  if(['mp3','wav','aac','flac','ogg'].includes(ext)) return 'audio';
+  if(['png','jpg','jpeg','gif','webp','bmp'].includes(ext)) return 'image';
+  return 'file';
+}
+
+function getMediaIcon(kind){
+  return {video:'🎬', audio:'🎵', image:'🖼️', file:'📁'}[kind] || '📁';
+}
+
+function updateMediaUI(){
+  const item = state.mediaLibrary.find(m => m.id === state.activeMediaId) || state.mediaLibrary[0] || null;
+  const count = state.mediaLibrary.length;
+  $('#media-count').textContent = `${count} item${count === 1 ? '' : 's'}`;
+  $('#media-status').textContent = item ? `${item.name} selected` : 'No media loaded';
+  $('#media-name').textContent = item ? item.name : '—';
+  $('#media-type').textContent = item ? item.typeLabel : '—';
+  $('#media-size').textContent = item ? formatBytes(item.size) : '—';
+  $('#media-resolution').textContent = item && item.width && item.height ? `${item.width}×${item.height}` : '—';
+  $('#media-duration').textContent = item && item.duration ? fmtTime(item.duration) : '—';
+}
+
+function renderMediaList(){
+  const list = $('#media-list');
+  list.innerHTML = '';
+
+  if(!state.mediaLibrary.length){
+    list.innerHTML = '<div class="media-empty">No media imported yet. Add a clip, photo, or audio track.</div>';
+    updateMediaUI();
+    return;
+  }
+
+  state.mediaLibrary.forEach(item => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'media-item' + (item.id === state.activeMediaId ? ' active' : '');
+    card.dataset.id = item.id;
+    card.innerHTML = `
+      <div class="media-thumb">${getMediaIcon(item.kind)}</div>
+      <div class="media-item-body">
+        <div class="media-item-name">${item.name}</div>
+        <div class="media-item-meta">${item.typeLabel} • ${formatBytes(item.size)}${item.duration ? ' • ' + fmtTime(item.duration) : ''}</div>
+      </div>
+    `;
+    card.addEventListener('click', ()=>{
+      state.activeMediaId = item.id;
+      renderMediaList();
+      updateMediaUI();
+      loadMediaFromItem(item);
+    });
+    list.appendChild(card);
+  });
+  updateMediaUI();
+}
+
+function registerMedia(file, options = {}){
+  if(!file) return;
+  const kind = getMediaKind(file);
+  const item = {
+    id: `media-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    name: file.name,
+    kind,
+    typeLabel: kind === 'file' ? 'File' : kind.charAt(0).toUpperCase() + kind.slice(1),
+    size: file.size,
+    url: URL.createObjectURL(file),
+    width: 0,
+    height: 0,
+    duration: 0,
+    lastUsed: Date.now()
+  };
+
+  const fillMetadata = (meta) => {
+    item.width = meta.width || item.width;
+    item.height = meta.height || item.height;
+    item.duration = meta.duration || item.duration;
+    if(item.kind === 'video' || item.kind === 'audio') item.typeLabel = item.kind === 'video' ? 'Video' : 'Audio';
+  };
+
+  if(kind === 'video'){ 
+    const probe = document.createElement('video');
+    probe.preload = 'metadata';
+    probe.onloadedmetadata = () => {
+      fillMetadata({ width: probe.videoWidth, height: probe.videoHeight, duration: probe.duration });
+      if(options.autoLoad) loadMediaFromItem(item);
+      renderMediaList();
+    };
+    probe.src = item.url;
+  } else if(kind === 'image'){ 
+    const img = new Image();
+    img.onload = () => {
+      fillMetadata({ width: img.width, height: img.height });
+      if(options.autoLoad) loadMediaFromItem(item);
+      renderMediaList();
+    };
+    img.src = item.url;
+  } else if(kind === 'audio'){ 
+    const probe = document.createElement('audio');
+    probe.preload = 'metadata';
+    probe.onloadedmetadata = () => {
+      fillMetadata({ duration: probe.duration });
+      if(options.autoLoad) loadMediaFromItem(item);
+      renderMediaList();
+    };
+    probe.src = item.url;
+  } else {
+    if(options.autoLoad) loadMediaFromItem(item);
+    renderMediaList();
+  }
+
+  if(options.replaceId){
+    const idx = state.mediaLibrary.findIndex(m => m.id === options.replaceId);
+    if(idx >= 0){
+      const old = state.mediaLibrary[idx];
+      if(old && old.url && old.url.startsWith('blob:')) URL.revokeObjectURL(old.url);
+      state.mediaLibrary[idx] = item;
+      state.activeMediaId = item.id;
+      renderMediaList();
+      if(options.autoLoad) loadMediaFromItem(item);
+      return;
+    }
+  }
+
+  state.mediaLibrary.push(item);
+  state.activeMediaId = item.id;
+  if(options.autoLoad) loadMediaFromItem(item);
+  renderMediaList();
+  toast('Media added to library');
+}
+
+function loadMediaFromItem(item){
+  if(!item) return;
+  const videoTypes = ['video'];
+  const isPlayable = videoTypes.includes(item.kind);
+  state.activeMediaId = item.id;
+  if(isPlayable){
+    if(typeof video === 'undefined') return;
+    video.src = item.url;
+    video.load();
+    state.media = {
+      fileName: item.name,
+      fileType: item.typeLabel,
+      fileSize: item.size,
+      width: item.width || 0,
+      height: item.height || 0,
+      duration: item.duration || 0,
+      status: `Loaded: ${item.name}`
+    };
+
+    const onMeta = () => {
+      video.removeEventListener('loadedmetadata', onMeta);
+      state.videoLoaded = true;
+      state.duration = video.duration;
+      state.trimIn = 0;
+      state.trimOut = video.duration;
+
+      const targetW = 1280;
+      const scale = targetW / video.videoWidth;
+      canvas.width = targetW;
+      canvas.height = Math.round(video.videoHeight * scale);
+      $('#btn-export').disabled = false;
+      $('#hud-res').textContent = `${video.videoWidth}×${video.videoHeight}`;
+      $('#dur-time').textContent = fmtTime(video.duration);
+      generateThumbnails();
+      layoutTrim();
+      renderMarkers();
+      renderKeyframes();
+      toast(`Loaded ${item.name}`);
+    };
+    video.addEventListener('loadedmetadata', onMeta, {once:true});
+    renderMediaList();
+    updateMediaUI();
+    return;
+  }
+
+  state.media = {
+    fileName: item.name,
+    fileType: item.typeLabel,
+    fileSize: item.size,
+    width: item.width || 0,
+    height: item.height || 0,
+    duration: item.duration || 0,
+    status: `Preview ready: ${item.name}`
+  };
+  renderMediaList();
+  updateMediaUI();
+}
+
+function deleteMediaItem(id){
+  const idx = state.mediaLibrary.findIndex(item => item.id === id);
+  if(idx < 0) return;
+  const [removed] = state.mediaLibrary.splice(idx, 1);
+  if(removed && removed.url && removed.url.startsWith('blob:')) URL.revokeObjectURL(removed.url);
+  state.activeMediaId = state.mediaLibrary[0] ? state.mediaLibrary[0].id : null;
+  if(!state.mediaLibrary.length){
+    state.videoLoaded = false;
+    state.media = {fileName:'', fileType:'', fileSize:0, width:0, height:0, duration:0, status:'No media loaded'};
+    video.removeAttribute('src');
+    video.load();
+  }
+  renderMediaList();
+  updateMediaUI();
+}
+
+function chooseMediaFile(replaceCurrent = false){
+  if(replaceCurrent){
+    state.replaceMediaPending = true;
+    fileInput.click();
+    return;
+  }
+  fileInput.click();
+}
+
+$('#btn-import-media').addEventListener('click', ()=> chooseMediaFile(false));
+$('#btn-import-more').addEventListener('click', ()=> chooseMediaFile(false));
+$('#btn-replace-media').addEventListener('click', ()=> chooseMediaFile(true));
+$('#btn-clear-media').addEventListener('click', ()=>{
+  state.mediaLibrary.forEach(item => {
+    if(item.url && item.url.startsWith('blob:')) URL.revokeObjectURL(item.url);
+  });
+  state.mediaLibrary = [];
+  state.activeMediaId = null;
+  state.videoLoaded = false;
+  state.media = {fileName:'', fileType:'', fileSize:0, width:0, height:0, duration:0, status:'No media loaded'};
+  video.removeAttribute('src');
+  video.load();
+  updateMediaUI();
+  renderMediaList();
+  toast('Media library cleared');
+});
+
+fileInput.addEventListener('change', e=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  if(state.replaceMediaPending && state.activeMediaId){
+    const targetId = state.activeMediaId;
+    const next = files[0];
+    registerMedia(next, { autoLoad: true, replaceId: targetId });
+    state.replaceMediaPending = false;
+    e.target.value = '';
+    return;
+  }
+  files.forEach(file => registerMedia(file, { autoLoad: true }));
+  e.target.value = '';
+});
+
 function loadFile(file){
   if(!file || !file.type.startsWith('video/')){
     toast('Please provide a valid video file');
@@ -460,7 +731,24 @@ function loadFile(file){
 
 dropZone.addEventListener('click', ()=>fileInput.click());
 $('#btn-open').addEventListener('click', ()=>fileInput.click());
-fileInput.addEventListener('change', e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+fileInput.addEventListener('change', e=>{ 
+  if(!e.target.files || !e.target.files[0]) return;
+  const first = e.target.files[0];
+  if(first.type.startsWith('video/')) {
+    loadFile(first);
+    e.target.value = '';
+    return;
+  }
+  if(state.replaceMediaPending && state.activeMediaId){
+    const targetId = state.activeMediaId;
+    registerMedia(first, { autoLoad: true, replaceId: targetId });
+    state.replaceMediaPending = false;
+    e.target.value = '';
+    return;
+  }
+  registerMedia(first, { autoLoad: true });
+  e.target.value = '';
+});
 
 ['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev, e=>{
   e.preventDefault(); dropZone.classList.add('dragover');

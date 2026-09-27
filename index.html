@@ -128,7 +128,7 @@
           <!-- Add more audio controls here like pitch,  speed, marking option, keyframes -->
         </div>
 
-    <div class="tab-page" data-page="videoctl" style="display:none;">
+        <div class="tab-page" data-page="videoctl" style="display:none;">
           <div class="section-title">Transform</div>
           <div class="slider-row"><div class="slider-label">Scale <span class="val" id="scaleVal">100%</span></div><input type="range" id="scale" min="10" max="300" value="100"></div>
           <div class="slider-row"><div class="slider-label">Position X <span class="val" id="posXVal">0</span></div><input type="range" id="posX" min="-100" max="100" value="0"></div>
@@ -150,7 +150,9 @@
           <button class="btn small" id="btn-add-keyframe" style="width:100%; margin-bottom:8px;">+ Add keyframe at playhead</button>
           <div id="keyframe-list"></div>
           <div class="empty-hint" id="keyframe-hint">Keyframes record the current transform, crop, and adjustment values at the playhead. The editor interpolates between them during playback.</div>
-    </div>
+        </div>
+
+        <!--  Add Video Control tab page with these functional options: crop, position, scale, marking option, keyframes -->
 
       </div>
     </div>
@@ -196,7 +198,7 @@
 
 </div>
 
-<input type="file" id="file-input" accept="video/*" multiple>
+<input type="file" id="file-input" accept="video/*,audio/*,image/*" multiple>
 
 <div id="export-modal">
   <div class="modal-box">
