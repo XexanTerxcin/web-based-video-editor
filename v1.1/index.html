@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X-CUT — Video Editor</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <div id="brand"><span class="dot"></span>X-CUT</div>
+    <div class="actions">
+      <button class="btn" id="btn-open">+ Upload video</button>
+      <button class="btn primary" id="btn-export" disabled>Export</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="panel">
+      <div id="tabs">
+        <div class="tab active" data-tab="fx">Effects</div>
+        <div class="tab" data-tab="adjust">Adjust</div>
+        <div class="tab" data-tab="text">Text</div>
+        <div class="tab" data-tab="audio">Audio</div>
+      </div>
+      <div id="panel-body">
+
+        <div class="tab-page" data-page="fx">
+          <div class="section-title">Look / style effects</div>
+          <div id="fx-grid"></div>
+          <div class="section-title">Effect intensity</div>
+          <div class="slider-row">
+            <div class="slider-label">Intensity <span class="val" id="fxIntensityVal">100%</span></div>
+            <input type="range" id="fxIntensity" min="0" max="100" value="100">
+          </div>
+        </div>
+
+        <div class="tab-page" data-page="adjust" style="display:none;">
+          <div class="section-title">Color adjustment</div>
+          <div class="slider-row"><div class="slider-label">Brightness <span class="val" id="brightnessVal">0</span></div><input type="range" id="brightness" min="-100" max="100" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Contrast <span class="val" id="contrastVal">0</span></div><input type="range" id="contrast" min="-100" max="100" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Saturation <span class="val" id="saturationVal">0</span></div><input type="range" id="saturation" min="-100" max="100" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Hue shift <span class="val" id="hueVal">0°</span></div><input type="range" id="hue" min="-180" max="180" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Gamma <span class="val" id="gammaVal">1.0</span></div><input type="range" id="gamma" min="30" max="300" value="100"></div>
+          <div class="slider-row"><div class="slider-label">Sharpness <span class="val" id="sharpenVal">0</span></div><input type="range" id="sharpen" min="0" max="100" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Vignette <span class="val" id="vignetteVal">0</span></div><input type="range" id="vignette" min="0" max="100" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Grain / noise <span class="val" id="grainVal">0</span></div><input type="range" id="grain" min="0" max="100" value="0"></div>
+          <div class="section-title">Playback</div>
+          <div class="slider-row"><div class="slider-label">Speed <span class="val" id="speedVal">1.0x</span></div><input type="range" id="speed" min="25" max="300" value="100"></div>
+        </div>
+
+        <div class="tab-page" data-page="text" style="display:none;">
+          <div class="section-title">Text / captions</div>
+          <button class="btn" id="btn-add-text" style="width:100%; margin-bottom:10px;">+ Add text</button>
+          <div id="text-list"></div>
+          <div id="text-editor" style="display:none; margin-top:14px;">
+            <div class="section-title">Edit selected text</div>
+            <div class="field-row"><label class="field">Content</label><input type="text" id="te-content"></div>
+            <div class="field-row two-col">
+              <div><label class="field">Color</label><input type="color" id="te-color" value="#ffffff"></div>
+              <div><label class="field">Size</label><input type="number" id="te-size" value="42" min="10" max="200"></div>
+            </div>
+            <div class="field-row"><label class="field">Font</label>
+              <select id="te-font">
+                <option value="Inter, sans-serif">Inter (modern)</option>
+                <option value="'JetBrains Mono', monospace">Mono (tech)</option>
+                <option value="Georgia, serif">Georgia (serif)</option>
+                <option value="'Arial Black', sans-serif">Arial Black (bold)</option>
+                <option value="'Courier New', monospace">Courier (typewriter)</option>
+              </select>
+            </div>
+            <div class="field-row"><label class="field">Style</label>
+              <select id="te-style">
+                <option value="normal">Normal</option>
+                <option value="shadow">Shadow</option>
+                <option value="outline">Outline</option>
+                <option value="glow">Glow</option>
+                <option value="bg">Background bar</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-page" data-page="audio" style="display:none;">
+          <div class="section-title">Audio control</div>
+          <div class="slider-row"><div class="slider-label">Volume <span class="val" id="volumeVal">100%</span></div><input type="range" id="volume" min="0" max="150" value="100"></div>
+          <div class="empty-hint">Note: changing speed also changes the audio pitch accordingly (browser default behavior).</div>
+          <!-- Add more audio controls here like pitch,  speed, marking option, keyframes -->
+        </div>
+
+    <div class="tab-page" data-page="videoctl" style="display:none;">
+          <div class="section-title">Transform</div>
+          <div class="slider-row"><div class="slider-label">Scale <span class="val" id="scaleVal">100%</span></div><input type="range" id="scale" min="10" max="300" value="100"></div>
+          <div class="slider-row"><div class="slider-label">Position X <span class="val" id="posXVal">0</span></div><input type="range" id="posX" min="-100" max="100" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Position Y <span class="val" id="posYVal">0</span></div><input type="range" id="posY" min="-100" max="100" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Rotation <span class="val" id="rotationVal">0°</span></div><input type="range" id="rotation" min="-180" max="180" value="0"></div>
+
+          <div class="section-title">Crop</div>
+          <div class="slider-row"><div class="slider-label">Top <span class="val" id="cropTopVal">0%</span></div><input type="range" id="cropTop" min="0" max="49" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Bottom <span class="val" id="cropBottomVal">0%</span></div><input type="range" id="cropBottom" min="0" max="49" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Left <span class="val" id="cropLeftVal">0%</span></div><input type="range" id="cropLeft" min="0" max="49" value="0"></div>
+          <div class="slider-row"><div class="slider-label">Right <span class="val" id="cropRightVal">0%</span></div><input type="range" id="cropRight" min="0" max="49" value="0"></div>
+          <button class="btn small" id="btn-reset-crop" style="width:100%; margin-bottom:10px;">Reset crop</button>
+
+          <div class="section-title">Markers</div>
+          <button class="btn small" id="btn-add-marker" style="width:100%; margin-bottom:8px;">+ Add marker at playhead</button>
+          <div id="marker-list"></div>
+
+          <div class="section-title">Keyframes</div>
+          <button class="btn small" id="btn-add-keyframe" style="width:100%; margin-bottom:8px;">+ Add keyframe at playhead</button>
+          <div id="keyframe-list"></div>
+          <div class="empty-hint" id="keyframe-hint">Keyframes record the current transform, crop, and adjustment values at the playhead. The editor interpolates between them during playback.</div>
+    </div>
+
+      </div>
+    </div>
+
+    <div id="stage">
+      <div id="stage-inner">
+        <canvas id="glcanvas" width="1280" height="720"></canvas>
+        <div id="overlay-layer"></div>
+      </div>
+      <div id="stage-hud">
+        <span class="chip" id="hud-res">—</span>
+        <span class="chip" id="hud-fx">No effect</span>
+      </div>
+      <div id="drop-zone">
+        <div class="drop-icon">⬆</div>
+        <div class="dz-title">Upload video file</div>
+        <div class="dz-sub">Click or drag and drop a file (MP4 / WebM / MOV)</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <div id="transport">
+      <button class="tp-btn" id="btn-playpause">▶</button>
+      <button class="tp-btn" id="btn-back" title="5 seconds back">⟲</button>
+      <button class="tp-btn" id="btn-fwd" title="5 seconds forward">⟳</button>
+      <div id="time-readout"><b id="cur-time">00:00.0</b> / <span id="dur-time">00:00.0</span></div>
+      <div class="transport-spacer"></div>
+      <span style="font-size:11px; color:var(--text-2);">In: <b id="trim-in-lbl" style="color:var(--text-1)">0.0s</b> — Out: <b id="trim-out-lbl" style="color:var(--text-1)">0.0s</b></span>
+    </div>
+    <div id="timeline-wrap">
+      <div id="ruler"></div>
+      <div id="track">
+        <div id="thumbs"></div>
+        <div id="trim-shade-l"></div>
+        <div id="trim-shade-r"></div>
+        <div class="handle" id="handle-l"></div>
+        <div class="handle" id="handle-r"></div>
+        <div id="playhead"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<input type="file" id="file-input" accept="video/*">
+
+<div id="export-modal">
+  <div class="modal-box">
+    <h3>Exporting…</h3>
+    <p>Video rendering is in progress — do not close the tab.</p>
+    <div id="progress-track"><div id="progress-fill"></div></div>
+    <div id="progress-pct">0%</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="script.js"></script>
+</body>
+</html>
