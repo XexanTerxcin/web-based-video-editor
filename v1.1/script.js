@@ -44,6 +44,11 @@ const state = {
   timelineClips:[],
   activeTimelineClipId:null,
   timelineZoom:1,
+  editTool:'select',
+  snapping:true,
+  inPoint:null,
+  outPoint:null,
+  trackControls:{V1:{locked:false, muted:false, solo:false, enabled:true}, A1:{locked:false, muted:false, solo:false, enabled:true}},
   trimMode:'trim',
   media:{
     fileName:'',
@@ -734,7 +739,7 @@ function loadTimelineClip(item){
   state.timelineClips.push(clip);
   state.activeTimelineClipId = clip.id;
   dropZone.classList.add('hidden');
-  $('#timeline-empty').classList.add('hidden');
+  $('#timeline-empty').classList.toggle('hidden', state.timelineClips.length > 0);
   loadTimelineSource(clip, item);
   toast(`${item.name} added to timeline`);
 }
@@ -783,9 +788,20 @@ function fmtTime(t){
   const s = (t%60).toFixed(1).padStart(4,'0');
   return String(m).padStart(2,'0')+':'+s;
 }
+function fmtTimecode(t, fps=30){
+  if(!isFinite(t)) return '00:00:00:00';
+  const totalFrames = Math.max(0, Math.floor(t * fps));
+  const frames = totalFrames % fps;
+  const totalSeconds = Math.floor(totalFrames / fps);
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const hours = Math.floor(totalSeconds / 3600);
+  return [hours, minutes, seconds].map(value=>String(value).padStart(2,'0')).join(':') + ':' + String(frames).padStart(2,'0');
+}
 function updateTimeUI(){
   if(!state.videoLoaded) return;
   $('#cur-time').textContent = fmtTime(video.currentTime);
+  $('#timecode-readout').textContent = fmtTimecode(timelinePosition());
   const track = $('#track');
   const clip = getActiveTimelineClip();
   if(!clip) return;
@@ -1096,6 +1112,87 @@ track.addEventListener('drop', e=>{
   loadTimelineClip(item);
 });
 
+function timelineTotalDuration(){
+  return state.timelineClips.reduce((sum, clip)=>sum + Math.max(0, clip.sourceOut - clip.sourceIn), 0);
+}
+function timelinePosition(){
+  const active = getActiveTimelineClip();
+  if(!active) return 0;
+  let offset = 0;
+  state.timelineClips.some(clip=>{
+    if(clip.id === active.id) return true;
+    offset += Math.max(0, clip.sourceOut - clip.sourceIn);
+    return false;
+  });
+  return offset + Math.max(0, video.currentTime - active.sourceIn);
+}
+function snapTimelineTime(time){
+  if(!state.snapping) return time;
+  const points = [0, timelineTotalDuration(), ...state.markers.map(marker=>marker.time)];
+  state.timelineClips.reduce((offset, clip)=>{
+    points.push(offset);
+    offset += Math.max(0, clip.sourceOut - clip.sourceIn);
+    points.push(offset);
+    return offset;
+  }, 0);
+  const nearby = points.find(point=>Math.abs(point-time) < 0.12);
+  return nearby === undefined ? time : nearby;
+}
+function splitTimelineClipAt(time){
+  let offset = 0;
+  let clipStart = 0;
+  const index = state.timelineClips.findIndex(clip=>{
+    clipStart = offset;
+    const duration = Math.max(0, clip.sourceOut - clip.sourceIn);
+    const inside = time > offset + 0.05 && time < offset + duration - 0.05;
+    if(!inside) offset += duration;
+    return inside;
+  });
+  if(index < 0) return;
+  const clip = state.timelineClips[index];
+  const splitSource = clip.sourceIn + (time - clipStart);
+  const next = {...clip, id:`timeline-${Date.now()}-split`, sourceIn:splitSource};
+  clip.sourceOut = splitSource;
+  state.timelineClips.splice(index + 1, 0, next);
+  state.activeTimelineClipId = next.id;
+  renderTimelineClips();
+  toast('Razor cut created');
+}
+
+$$('.edit-tool[data-edit-tool]').forEach(button=>button.addEventListener('click', ()=>{
+  state.editTool = button.dataset.editTool;
+  $$('.edit-tool[data-edit-tool]').forEach(tool=>tool.classList.toggle('active', tool === button));
+  toast(`${button.textContent.trim()} tool selected`);
+}));
+$('#btn-snap').addEventListener('click', ()=>{
+  state.snapping = !state.snapping;
+  $('#btn-snap').classList.toggle('active', state.snapping);
+  toast(state.snapping ? 'Snapping on' : 'Snapping off');
+});
+$('#btn-set-in').addEventListener('click', ()=>{
+  state.inPoint = snapTimelineTime(timelinePosition());
+  toast(`In point ${fmtTime(state.inPoint)}`);
+});
+$('#btn-set-out').addEventListener('click', ()=>{
+  state.outPoint = snapTimelineTime(timelinePosition());
+  toast(`Out point ${fmtTime(state.outPoint)}`);
+});
+$('#btn-add-timeline-marker').addEventListener('click', ()=>{
+  const time = snapTimelineTime(timelinePosition());
+  state.markers.push({id:Date.now(), time, color:'#ffd23b', note:'Marker'});
+  renderMarkers();
+  toast(`Marker at ${fmtTime(time)}`);
+});
+$$('.track-control').forEach(button=>button.addEventListener('click', ()=>{
+  const trackName = button.closest('.track-header').querySelector('strong').textContent;
+  const action = button.dataset.trackAction;
+  const controls = state.trackControls[trackName];
+  if(!controls) return;
+  const key = action === 'lock' ? 'locked' : action === 'mute' ? 'muted' : action === 'solo' ? 'solo' : 'enabled';
+  controls[key] = action === 'disable' ? !controls.enabled : !controls[key];
+  button.classList.toggle('active', action === 'disable' ? !controls.enabled : controls[key]);
+}));
+
 $$('.trim-mode').forEach(button=>button.addEventListener('click', ()=>{
   if(!state.videoLoaded){ toast('Drag a video to the timeline first'); return; }
   const clip = getActiveTimelineClip();
@@ -1124,6 +1221,7 @@ function layoutTrim(){
     return false;
   });
   const scale = timelineScale();
+  const trackWidth = track.clientWidth;
   const clipLeft = offset * scale;
   const clipWidth = Math.max(0.2, clip.sourceOut - clip.sourceIn) * scale;
   const xL = clipLeft + ((state.trimIn - clip.sourceIn) / Math.max(0.2, clip.sourceOut - clip.sourceIn)) * clipWidth;
@@ -1131,7 +1229,7 @@ function layoutTrim(){
   handleL.style.left = xL+'px';
   handleR.style.left = (xR-10)+'px';
   shadeL.style.width = xL+'px';
-  shadeR.style.width = (w-xR)+'px';
+  shadeR.style.width = (trackWidth-xR)+'px';
   $('#trim-in-lbl').textContent = state.trimIn.toFixed(1)+'s';
   $('#trim-out-lbl').textContent = state.trimOut.toFixed(1)+'s';
 }
@@ -1166,6 +1264,12 @@ function dragHandle(handle, isLeft){
       layoutTrim();
     };
     const up = ()=>{
+      const clip = getActiveTimelineClip();
+      if(clip && state.editTool === 'ripple'){
+        clip.sourceIn = state.trimIn;
+        clip.sourceOut = state.trimOut;
+        renderTimelineClips();
+      }
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
@@ -1182,6 +1286,21 @@ track.addEventListener('click', e=>{
   const rect = track.getBoundingClientRect();
   const x = e.clientX-rect.left;
   const scale = timelineScale();
+  let timelineTime = 0;
+  let timeOffset = 0;
+  state.timelineClips.some(candidate=>{
+    const width = Math.max(0.2, candidate.sourceOut - candidate.sourceIn) * scale;
+    if(x <= timeOffset * scale + width){
+      timelineTime = timeOffset + (x - timeOffset * scale) / scale;
+      return true;
+    }
+    timeOffset += Math.max(0, candidate.sourceOut - candidate.sourceIn);
+    return false;
+  });
+  if(state.editTool === 'razor'){
+    splitTimelineClipAt(snapTimelineTime(timelineTime));
+    return;
+  }
   let offset = 0;
   const clip = state.timelineClips.find(candidate=>{
     const width = Math.max(0.2, candidate.sourceOut - candidate.sourceIn) * scale;
