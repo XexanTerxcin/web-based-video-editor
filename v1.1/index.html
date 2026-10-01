@@ -31,29 +31,43 @@
       <div id="panel-body">
 
         <div class="tab-page" data-page="media">
-          <div class="media-header">
-            <div class="section-title">Media library</div>
-            <div class="media-actions">
-              <button class="btn" id="btn-import-media">+ Import</button>
-              <button class="btn small" id="btn-replace-media">Replace</button>
-              <button class="btn small secondary" id="btn-clear-media">Clear</button>
-            </div>
+          <div class="media-bin-toolbar">
+            <button class="bin-icon-btn" id="btn-import-media" title="Import media" aria-label="Import media">▣</button>
+            <button class="bin-icon-btn" id="btn-new-sequence" title="New sequence" aria-label="New sequence">▤</button>
+            <button class="bin-icon-btn" id="btn-delete-sequence" title="Delete selected media" aria-label="Delete selected media">⌫</button>
+            <span class="bin-toolbar-divider"></span>
+            <button class="bin-icon-btn" id="btn-replace-media" title="Replace selected media" aria-label="Replace selected media">↻</button>
+            <button class="bin-icon-btn" id="btn-clear-media" title="Clear media bin" aria-label="Clear media bin">≡</button>
+            <span class="bin-toolbar-spacer"></span>
+            <button class="bin-icon-btn" id="btn-bin-filter" title="Filter media" aria-label="Filter media">▽</button>
+            <span class="bin-filter-chevron">⌄</span>
+            <input class="bin-search" id="media-search" type="search" placeholder="Search..." aria-label="Search media">
           </div>
 
-          <div class="library-panel">
-            <div class="library-row active">
-              <span class="library-label">Project</span>
-              <span class="library-count" id="media-count">0 items</span>
-            </div>
-            <div class="media-status" id="media-status">No media loaded</div>
+          <div class="media-bin-heading">
+            <span>Name</span>
+            <span class="media-bin-sort">⌃</span>
           </div>
 
-          <div class="library-block">
-            <div class="library-block-head">
-              <span>Imported media</span>
-              <button class="ghost-btn" id="btn-import-more">Add more</button>
-            </div>
+          <div class="media-bin-tree">
+            <button class="sequence-row" id="sequence-row" type="button">
+              <span class="tree-chevron">›</span>
+              <span class="folder-icon"></span>
+              <strong>Sequences</strong>
+            </button>
+          </div>
+
+          <div class="media-bin-content">
             <div id="media-list" class="media-list"></div>
+            <div class="media-empty-state" id="media-empty-state">
+              <span class="empty-state-icon">▣</span>
+              <span>Double click, drop files or click <b>▣</b> to import media</span>
+            </div>
+          </div>
+
+          <div class="media-bin-footer">
+            <span id="media-status">No media loaded</span>
+            <span id="media-count">0 items</span>
           </div>
 
           <div class="media-grid">

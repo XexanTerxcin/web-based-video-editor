@@ -468,6 +468,7 @@ function updateMediaUI(){
   const count = state.mediaLibrary.length;
   $('#media-count').textContent = `${count} item${count === 1 ? '' : 's'}`;
   $('#media-status').textContent = item ? `${item.name} selected` : 'No media loaded';
+  $('#media-empty-state').classList.toggle('hidden', count > 0);
   $('#media-name').textContent = item ? item.name : '—';
   $('#media-type').textContent = item ? item.typeLabel : '—';
   $('#media-size').textContent = item ? formatBytes(item.size) : '—';
@@ -477,15 +478,19 @@ function updateMediaUI(){
 
 function renderMediaList(){
   const list = $('#media-list');
+  const query = ($('#media-search').value || '').trim().toLowerCase();
   list.innerHTML = '';
 
-  if(!state.mediaLibrary.length){
-    list.innerHTML = '<div class="media-empty">No media imported yet. Add a clip, photo, or audio track.</div>';
+  const visibleItems = state.mediaLibrary.filter(item => {
+    return !query || item.name.toLowerCase().includes(query) || item.typeLabel.toLowerCase().includes(query);
+  });
+
+  if(!visibleItems.length){
     updateMediaUI();
     return;
   }
 
-  state.mediaLibrary.forEach(item => {
+  visibleItems.forEach(item => {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'media-item' + (item.id === state.activeMediaId ? ' active' : '');
@@ -666,8 +671,13 @@ function chooseMediaFile(replaceCurrent = false){
 }
 
 $('#btn-import-media').addEventListener('click', ()=> chooseMediaFile(false));
-$('#btn-import-more').addEventListener('click', ()=> chooseMediaFile(false));
 $('#btn-replace-media').addEventListener('click', ()=> chooseMediaFile(true));
+$('#btn-delete-sequence').addEventListener('click', ()=>{
+  if(state.activeMediaId) deleteMediaItem(state.activeMediaId);
+});
+$('#btn-new-sequence').addEventListener('click', ()=> toast('Sequences are ready for your next edit'));
+$('#media-search').addEventListener('input', renderMediaList);
+$('#sequence-row').addEventListener('dblclick', ()=> chooseMediaFile(false));
 $('#btn-clear-media').addEventListener('click', ()=>{
   state.mediaLibrary.forEach(item => {
     if(item.url && item.url.startsWith('blob:')) URL.revokeObjectURL(item.url);
