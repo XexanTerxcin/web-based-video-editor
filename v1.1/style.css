@@ -304,15 +304,15 @@
   #timeline-content{height:100%; min-width:100%; position:relative; display:flex; flex-direction:column; justify-content:center; gap:6px;}
   #ruler{height:14px; position:relative; margin-bottom:4px; flex-shrink:0;}
   #track{
-    position:relative; height:56px; min-height:56px; background:var(--bg-2);
+    position:relative; width:calc(100% - 100px); height:56px; min-height:56px; background:var(--bg-2);
     border-radius:8px; border:1px solid var(--line); overflow:hidden;
   }
-  .timeline-lane{display:flex; align-items:stretch; gap:8px; min-height:56px;}
+  .timeline-lane{display:flex; align-items:stretch; gap:8px; width:100%; min-height:56px;}
   .track-header{width:92px; flex:0 0 92px; display:flex; align-items:center; gap:4px; padding:0 5px; background:var(--bg-2); border:1px solid var(--line); border-radius:6px; color:var(--text-1); font:10px var(--mono);}
   .track-header strong{color:var(--text-0); margin-right:auto;}
   .track-control{width:17px; height:19px; padding:0; border:0; border-radius:3px; color:var(--text-2); background:transparent; cursor:pointer; font:10px var(--mono);}
   .track-control:hover,.track-control.active{background:var(--bg-3); color:var(--accent);}
-  .timeline-lane #track{flex:1; min-width:0;}
+  .timeline-lane #track{flex:0 0 auto; min-width:0;}
   .audio-lane{min-height:38px;}
   .audio-track-placeholder{position:relative; flex:1; min-width:0; height:38px; border:1px solid var(--line); border-radius:6px; background:repeating-linear-gradient(135deg, rgba(74,163,199,.08) 0 3px, transparent 3px 8px), var(--bg-2); color:var(--text-2); font-size:9px; display:flex; align-items:center; padding-left:12px; overflow:hidden;}
   .audio-track-placeholder::after{content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:rgba(74,163,199,.55); box-shadow:22px 0 0 rgba(74,163,199,.35), 46px 0 0 rgba(74,163,199,.6), 82px 0 0 rgba(74,163,199,.25), 120px 0 0 rgba(74,163,199,.5);}

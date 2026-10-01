@@ -1042,11 +1042,12 @@ function renderTimelineClips(){
   const content = $('#timeline-content');
   const availableWidth = Math.max(0, $('#timeline-wrap').clientWidth - 32);
   const totalDuration = state.timelineClips.reduce((sum, clip)=>sum + Math.max(0, clip.sourceOut - clip.sourceIn), 0);
-  const contentWidth = Math.max(availableWidth, totalDuration * timelineScale());
-  content.style.width = contentWidth + 'px';
+  const trackWidth = Math.max(availableWidth - 100, totalDuration * timelineScale());
+  content.style.width = (trackWidth + 100) + 'px';
   const ruler = $('#ruler');
-  ruler.style.width = contentWidth + 'px';
-  track.style.width = contentWidth + 'px';
+  ruler.style.width = trackWidth + 'px';
+  ruler.style.marginLeft = '100px';
+  track.style.width = trackWidth + 'px';
   let offset = 0;
   state.timelineClips.forEach(clip=>{
     const duration = Math.max(0.2, clip.sourceOut - clip.sourceIn);
