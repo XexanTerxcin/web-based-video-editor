@@ -48,6 +48,9 @@ const state = {
   snapping:true,
   inPoint:null,
   outPoint:null,
+  audioEdits:[],
+  adjustmentLayers:[],
+  compoundClips:[],
   trackControls:{V1:{locked:false, muted:false, solo:false, enabled:true}, A1:{locked:false, muted:false, solo:false, enabled:true}},
   trimMode:'trim',
   media:{
@@ -918,7 +921,7 @@ function renderMarkers(){
 
     const dot = document.createElement('div');
     dot.className = 'ruler-marker';
-    dot.style.left = ((m.time/state.duration)*100)+'%';
+    dot.style.left = (timelineTotalDuration() ? (m.time/timelineTotalDuration())*100 : 0)+'%';
     dot.title = fmtTime(m.time);
     dot.addEventListener('click', ()=>{ video.currentTime = m.time; });
     ruler.appendChild(dot);
@@ -1177,6 +1180,38 @@ $('#btn-set-out').addEventListener('click', ()=>{
   state.outPoint = snapTimelineTime(timelinePosition());
   toast(`Out point ${fmtTime(state.outPoint)}`);
 });
+$('#btn-j-cut').addEventListener('click', ()=>{
+  const clip = getActiveTimelineClip();
+  if(!clip){ toast('Select a timeline clip first'); return; }
+  clip.audioEdit = 'j-cut';
+  state.audioEdits.push({type:'j-cut', clipId:clip.id, time:timelinePosition()});
+  toast('J-cut applied: audio leads the video edit');
+});
+$('#btn-l-cut').addEventListener('click', ()=>{
+  const clip = getActiveTimelineClip();
+  if(!clip){ toast('Select a timeline clip first'); return; }
+  clip.audioEdit = 'l-cut';
+  state.audioEdits.push({type:'l-cut', clipId:clip.id, time:timelinePosition()});
+  toast('L-cut applied: audio extends past the video edit');
+});
+$('#btn-compound').addEventListener('click', ()=>{
+  if(state.timelineClips.length < 2){ toast('Add at least two clips to create a compound clip'); return; }
+  const compound = {id:Date.now(), clipIds:state.timelineClips.map(clip=>clip.id), name:'Compound sequence'};
+  state.compoundClips.push(compound);
+  toast('Compound sequence created');
+});
+$('#btn-adjustment-layer').addEventListener('click', ()=>{
+  const layer = {id:Date.now(), start:state.inPoint ?? timelinePosition(), end:state.outPoint ?? timelineTotalDuration(), name:'Adjustment layer'};
+  state.adjustmentLayers.push(layer);
+  toast('Adjustment layer added across the selected range');
+});
+$('#btn-audio-fade').addEventListener('click', ()=>{
+  const clip = getActiveTimelineClip();
+  if(!clip){ toast('Select a timeline clip first'); return; }
+  clip.audioFade = clip.audioFade ? null : {in:0.5, out:0.5, crossfade:true};
+  toast(clip.audioFade ? 'Equal-power audio fade added' : 'Audio fade removed');
+});
+$('#btn-audio-route').addEventListener('click', ()=>toast('Audio routing: stereo track A1 selected'));
 $('#btn-add-timeline-marker').addEventListener('click', ()=>{
   const time = snapTimelineTime(timelinePosition());
   state.markers.push({id:Date.now(), time, color:'#ffd23b', note:'Marker'});
