@@ -216,6 +216,19 @@
       <span style="font-size:11px; color:var(--text-2);">In: <b id="trim-in-lbl" style="color:var(--text-1)">0.0s</b> — Out: <b id="trim-out-lbl" style="color:var(--text-1)">0.0s</b></span>
     </div>
     <div id="trim-tools" aria-label="Trim options">
+      <span class="trim-tools-label">Tools</span>
+      <button class="edit-tool active" data-edit-tool="select" type="button" title="Selection tool">↖ Select</button>
+      <button class="edit-tool" data-edit-tool="ripple" type="button" title="Ripple edit">↔ Ripple</button>
+      <button class="edit-tool" data-edit-tool="rolling" type="button" title="Rolling edit">⇆ Rolling</button>
+      <button class="edit-tool" data-edit-tool="slip" type="button" title="Slip edit">⇄ Slip</button>
+      <button class="edit-tool" data-edit-tool="slide" type="button" title="Slide edit">⇤ Slide</button>
+      <button class="edit-tool" id="btn-razor" data-edit-tool="razor" type="button" title="Razor tool">⌁ Razor</button>
+      <span class="trim-tools-divider"></span>
+      <button class="edit-tool" id="btn-add-timeline-marker" type="button" title="Add marker">◆ Marker</button>
+      <button class="edit-tool toggle active" id="btn-snap" type="button" title="Toggle snapping">⌁ Snap</button>
+      <button class="edit-tool" id="btn-set-in" type="button" title="Set in point">[ In</button>
+      <button class="edit-tool" id="btn-set-out" type="button" title="Set out point">Out ]</button>
+      <span class="trim-tools-spacer"></span>
       <span class="trim-tools-label">Edit selection</span>
       <button class="trim-mode active" data-trim-mode="trim" type="button">1. Trim</button>
       <button class="trim-mode" data-trim-mode="left" type="button">2. Trim + delete left</button>
@@ -225,14 +238,33 @@
     <div id="timeline-wrap">
       <div id="timeline-content">
         <div id="ruler"></div>
-        <div id="track">
-          <div id="thumbs"></div>
-          <div id="timeline-empty">Drag media here to add it to the timeline</div>
-          <div id="trim-shade-l"></div>
-          <div id="trim-shade-r"></div>
-          <div class="handle" id="handle-l"></div>
-          <div class="handle" id="handle-r"></div>
-          <div id="playhead"></div>
+        <div class="timeline-lane">
+          <div class="track-header">
+            <strong>V1</strong>
+            <button class="track-control" data-track-action="lock" type="button" title="Lock video track">◇</button>
+            <button class="track-control" data-track-action="mute" type="button" title="Mute video track">M</button>
+            <button class="track-control" data-track-action="solo" type="button" title="Solo video track">S</button>
+            <button class="track-control" data-track-action="disable" type="button" title="Disable video track">V</button>
+          </div>
+          <div id="track">
+            <div id="thumbs"></div>
+            <div id="timeline-empty">Drag media here to add it to the timeline</div>
+            <div id="trim-shade-l"></div>
+            <div id="trim-shade-r"></div>
+            <div class="handle" id="handle-l"></div>
+            <div class="handle" id="handle-r"></div>
+            <div id="playhead"></div>
+          </div>
+        </div>
+        <div class="timeline-lane audio-lane">
+          <div class="track-header">
+            <strong>A1</strong>
+            <button class="track-control" data-track-action="lock" type="button" title="Lock audio track">◇</button>
+            <button class="track-control" data-track-action="mute" type="button" title="Mute audio track">M</button>
+            <button class="track-control" data-track-action="solo" type="button" title="Solo audio track">S</button>
+            <button class="track-control" data-track-action="disable" type="button" title="Disable audio track">A</button>
+          </div>
+          <div class="audio-track-placeholder"><span>Audio waveform / rubber-band automation</span></div>
         </div>
       </div>
     </div>
