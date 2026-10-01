@@ -41,6 +41,8 @@ const state = {
   mediaLibrary:[],
   activeMediaId:null,
   replaceMediaPending:false,
+  timelineClip:null,
+  trimMode:'trim',
   media:{
     fileName:'',
     fileType:'',
@@ -57,6 +59,13 @@ const video = document.createElement('video');
 video.playsInline = true;
 video.crossOrigin = 'anonymous';
 video.muted = false;
+const mediaPreview = $('#media-preview-video');
+mediaPreview.muted = true;
+mediaPreview.addEventListener('timeupdate', ()=>{
+  $('#media-preview-time').textContent = `${fmtTime(mediaPreview.currentTime)} / ${fmtTime(mediaPreview.duration)}`;
+});
+mediaPreview.addEventListener('play', ()=>{ $('#btn-media-preview-play').textContent = '❚❚'; });
+mediaPreview.addEventListener('pause', ()=>{ $('#btn-media-preview-play').textContent = '▶'; });
 
 /* ---------------- WebGL setup ---------------- */
 const canvas = $('#glcanvas');
@@ -493,6 +502,7 @@ function renderMediaList(){
   visibleItems.forEach(item => {
     const card = document.createElement('button');
     card.type = 'button';
+    card.draggable = true;
     card.className = 'media-item' + (item.id === state.activeMediaId ? ' active' : '');
     card.dataset.id = item.id;
     card.innerHTML = `
@@ -508,6 +518,12 @@ function renderMediaList(){
       updateMediaUI();
       loadMediaFromItem(item);
     });
+    card.addEventListener('dragstart', e=>{
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/media-id', item.id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', ()=>card.classList.remove('dragging'));
     list.appendChild(card);
   });
   updateMediaUI();
@@ -589,49 +605,12 @@ function registerMedia(file, options = {}){
 
 function loadMediaFromItem(item){
   if(!item) return;
-  const videoTypes = ['video'];
-  const isPlayable = videoTypes.includes(item.kind);
   state.activeMediaId = item.id;
-  if(isPlayable){
-    if(typeof video === 'undefined') return;
-    video.src = item.url;
-    video.load();
-    state.media = {
-      fileName: item.name,
-      fileType: item.typeLabel,
-      fileSize: item.size,
-      width: item.width || 0,
-      height: item.height || 0,
-      duration: item.duration || 0,
-      status: `Loaded: ${item.name}`
-    };
-
-    const onMeta = () => {
-      video.removeEventListener('loadedmetadata', onMeta);
-      state.videoLoaded = true;
-      state.duration = video.duration;
-      state.trimIn = 0;
-      state.trimOut = video.duration;
-
-      const targetW = 1280;
-      const scale = targetW / video.videoWidth;
-      canvas.width = targetW;
-      canvas.height = Math.round(video.videoHeight * scale);
-      $('#btn-export').disabled = false;
-      $('#hud-res').textContent = `${video.videoWidth}×${video.videoHeight}`;
-      $('#dur-time').textContent = fmtTime(video.duration);
-      generateThumbnails();
-      layoutTrim();
-      renderMarkers();
-      renderKeyframes();
-      toast(`Loaded ${item.name}`);
-    };
-    video.addEventListener('loadedmetadata', onMeta, {once:true});
-    renderMediaList();
-    updateMediaUI();
-    return;
-  }
-
+  mediaPreview.pause();
+  mediaPreview.src = item.kind === 'video' ? item.url : '';
+  mediaPreview.load();
+  $('#source-preview-empty').classList.toggle('hidden', item.kind === 'video');
+  $('#media-preview-time').textContent = item.kind === 'video' ? `00:00.0 / ${fmtTime(item.duration)}` : 'Preview unavailable';
   state.media = {
     fileName: item.name,
     fileType: item.typeLabel,
@@ -639,7 +618,7 @@ function loadMediaFromItem(item){
     width: item.width || 0,
     height: item.height || 0,
     duration: item.duration || 0,
-    status: `Preview ready: ${item.name}`
+    status: `Source preview: ${item.name}`
   };
   renderMediaList();
   updateMediaUI();
@@ -653,6 +632,11 @@ function deleteMediaItem(id){
   state.activeMediaId = state.mediaLibrary[0] ? state.mediaLibrary[0].id : null;
   if(!state.mediaLibrary.length){
     state.videoLoaded = false;
+    state.timelineClip = null;
+    dropZone.classList.remove('hidden');
+    $('#timeline-empty').classList.remove('hidden');
+    $('#timeline-clip')?.remove();
+    $('#btn-export').disabled = true;
     state.media = {fileName:'', fileType:'', fileSize:0, width:0, height:0, duration:0, status:'No media loaded'};
     video.removeAttribute('src');
     video.load();
@@ -685,9 +669,15 @@ $('#btn-clear-media').addEventListener('click', ()=>{
   state.mediaLibrary = [];
   state.activeMediaId = null;
   state.videoLoaded = false;
+  state.timelineClip = null;
+  dropZone.classList.remove('hidden');
+  $('#timeline-empty').classList.remove('hidden');
+  $('#timeline-clip')?.remove();
   state.media = {fileName:'', fileType:'', fileSize:0, width:0, height:0, duration:0, status:'No media loaded'};
   video.removeAttribute('src');
   video.load();
+  mediaPreview.removeAttribute('src');
+  mediaPreview.load();
   updateMediaUI();
   renderMediaList();
   toast('Media library cleared');
@@ -708,57 +698,8 @@ fileInput.addEventListener('change', e=>{
   e.target.value = '';
 });
 
-function loadFile(file){
-  if(!file || !file.type.startsWith('video/')){
-    toast('Please provide a valid video file');
-    return;
-  }
-  const url = URL.createObjectURL(file);
-  video.src = url;
-  video.addEventListener('loadedmetadata', function onMeta(){
-    video.removeEventListener('loadedmetadata', onMeta);
-    state.videoLoaded = true;
-    state.duration = video.duration;
-    state.trimIn = 0;
-    state.trimOut = video.duration;
-
-    const targetW = 1280;
-    const scale = targetW / video.videoWidth;
-    canvas.width = targetW;
-    canvas.height = Math.round(video.videoHeight * scale);
-
-    dropZone.classList.add('hidden');
-    $('#btn-export').disabled = false;
-    $('#hud-res').textContent = video.videoWidth + '×' + video.videoHeight;
-    $('#dur-time').textContent = fmtTime(video.duration);
-    generateThumbnails();
-    layoutTrim();
-    renderMarkers();
-    renderKeyframes();
-    toast('Video loaded ✓');
-  }, {once:true});
-}
-
 dropZone.addEventListener('click', ()=>fileInput.click());
 $('#btn-open').addEventListener('click', ()=>fileInput.click());
-fileInput.addEventListener('change', e=>{ 
-  if(!e.target.files || !e.target.files[0]) return;
-  const first = e.target.files[0];
-  if(first.type.startsWith('video/')) {
-    loadFile(first);
-    e.target.value = '';
-    return;
-  }
-  if(state.replaceMediaPending && state.activeMediaId){
-    const targetId = state.activeMediaId;
-    registerMedia(first, { autoLoad: true, replaceId: targetId });
-    state.replaceMediaPending = false;
-    e.target.value = '';
-    return;
-  }
-  registerMedia(first, { autoLoad: true });
-  e.target.value = '';
-});
 
 ['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev, e=>{
   e.preventDefault(); dropZone.classList.add('dragover');
@@ -767,9 +708,45 @@ fileInput.addEventListener('change', e=>{
   e.preventDefault(); dropZone.classList.remove('dragover');
 }));
 dropZone.addEventListener('drop', e=>{
-  const f = e.dataTransfer.files[0];
-  if(f) loadFile(f);
+  const files = Array.from(e.dataTransfer.files || []);
+  files.forEach(file => registerMedia(file, { autoLoad: true }));
 });
+
+$('#btn-media-preview-play').addEventListener('click', ()=>{
+  if(!mediaPreview.src) return;
+  if(mediaPreview.paused) mediaPreview.play();
+  else mediaPreview.pause();
+});
+
+function loadTimelineClip(item){
+  if(!item || item.kind !== 'video') return;
+  state.timelineClip = {mediaId:item.id, name:item.name, duration:item.duration || 0};
+  video.pause();
+  video.src = item.url;
+  video.load();
+  video.addEventListener('loadedmetadata', function onMeta(){
+    video.removeEventListener('loadedmetadata', onMeta);
+    state.videoLoaded = true;
+    state.duration = video.duration;
+    state.trimIn = 0;
+    state.trimOut = video.duration;
+    const targetW = 1280;
+    const scale = targetW / video.videoWidth;
+    canvas.width = targetW;
+    canvas.height = Math.round(video.videoHeight * scale);
+    dropZone.classList.add('hidden');
+    $('#timeline-empty').classList.add('hidden');
+    $('#btn-export').disabled = false;
+    $('#hud-res').textContent = `${video.videoWidth}×${video.videoHeight}`;
+    $('#dur-time').textContent = fmtTime(video.duration);
+    renderTimelineClip(item);
+    generateThumbnails();
+    layoutTrim();
+    renderMarkers();
+    renderKeyframes();
+    toast(`${item.name} added to timeline`);
+  }, {once:true});
+}
 
 /* ---------------- Transport ---------------- */
 const btnPlay = $('#btn-playpause');
@@ -1017,6 +994,55 @@ const handleR = $('#handle-r');
 const shadeL = $('#trim-shade-l');
 const shadeR = $('#trim-shade-r');
 
+function renderTimelineClip(item){
+  $('#timeline-clip')?.remove();
+  const clip = document.createElement('div');
+  clip.id = 'timeline-clip';
+  clip.className = 'timeline-clip';
+  clip.innerHTML = `<span class="timeline-clip-label">${item.name}</span>`;
+  track.appendChild(clip);
+  $('#timeline-empty').classList.add('hidden');
+}
+
+track.addEventListener('dragover', e=>{
+  if(Array.from(e.dataTransfer.types || []).includes('text/media-id')){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    track.classList.add('timeline-drop-target');
+  }
+});
+track.addEventListener('dragleave', ()=>track.classList.remove('timeline-drop-target'));
+track.addEventListener('drop', e=>{
+  e.preventDefault();
+  track.classList.remove('timeline-drop-target');
+  const id = e.dataTransfer.getData('text/media-id');
+  const item = state.mediaLibrary.find(media => media.id === id);
+  if(!item) return;
+  if(item.kind !== 'video'){
+    toast('Only video clips can be added to the timeline');
+    return;
+  }
+  loadTimelineClip(item);
+});
+
+$$('.trim-mode').forEach(button=>button.addEventListener('click', ()=>{
+  if(!state.videoLoaded){ toast('Drag a video to the timeline first'); return; }
+  state.trimMode = button.dataset.trimMode;
+  $$('.trim-mode').forEach(control=>control.classList.toggle('active', control === button));
+  if(state.trimMode === 'left'){
+    state.trimIn = 0;
+    video.currentTime = 0;
+    $('#trim-mode-hint').textContent = 'Deletes everything before the selected out point';
+  } else if(state.trimMode === 'right'){
+    state.trimOut = state.duration;
+    video.currentTime = state.trimOut;
+    $('#trim-mode-hint').textContent = 'Deletes everything after the selected in point';
+  } else {
+    $('#trim-mode-hint').textContent = 'Keeps the selected range';
+  }
+  layoutTrim();
+}));
+
 function layoutTrim(){
   if(!state.videoLoaded) return;
   const w = track.clientWidth;
@@ -1215,7 +1241,15 @@ function openTextEditor(t){
 /* ---------------- Keyboard ---------------- */
 window.addEventListener('keydown', e=>{
   if(e.target.tagName==='INPUT' || e.target.tagName==='SELECT') return;
-  if(e.code==='Space'){ e.preventDefault(); if(state.videoLoaded) setPlaying(!state.playing); }
+  if(e.code==='Space'){
+    e.preventDefault();
+    if(state.activeMediaId && mediaPreview.src){
+      if(mediaPreview.paused) mediaPreview.play();
+      else mediaPreview.pause();
+      return;
+    }
+    if(state.videoLoaded) setPlaying(!state.playing);
+  }
 });
 
 /* ---------------- Export ---------------- */

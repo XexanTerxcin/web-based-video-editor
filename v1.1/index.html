@@ -14,7 +14,7 @@
   <div id="topbar">
     <div id="brand"><span class="dot"></span>X-CUT</div>
     <div class="actions">
-      <button class="btn" id="btn-open">+ Upload video</button>
+      <button class="btn" id="btn-open">+ Import media</button>
       <button class="btn primary" id="btn-export" disabled>Export</button>
     </div>
   </div>
@@ -43,6 +43,18 @@
             <button class="bin-icon-btn" id="btn-bin-filter" title="Filter media" aria-label="Filter media">▽</button>
             <span class="bin-filter-chevron">⌄</span>
             <input class="bin-search" id="media-search" type="search" placeholder="Search..." aria-label="Search media">
+          </div>
+
+          <div class="source-preview">
+            <div class="source-preview-screen">
+              <video id="media-preview-video" playsinline preload="metadata"></video>
+              <div class="source-preview-empty" id="source-preview-empty">Select a media clip to preview</div>
+            </div>
+            <div class="source-preview-controls">
+              <button class="preview-play" id="btn-media-preview-play" type="button" aria-label="Play selected media">▶</button>
+              <span id="media-preview-time">00:00.0 / 00:00.0</span>
+              <span class="source-preview-label">SOURCE PREVIEW</span>
+            </div>
           </div>
 
           <div class="media-bin-heading">
@@ -181,8 +193,8 @@
       </div>
       <div id="drop-zone">
         <div class="drop-icon">⬆</div>
-        <div class="dz-title">Upload video file</div>
-        <div class="dz-sub">Click or drag and drop a file (MP4 / WebM / MOV)</div>
+        <div class="dz-title">Import media to the bin</div>
+        <div class="dz-sub">Click or drag and drop a video, then drag it to the timeline</div>
       </div>
     </div>
   </div>
@@ -196,10 +208,18 @@
       <div class="transport-spacer"></div>
       <span style="font-size:11px; color:var(--text-2);">In: <b id="trim-in-lbl" style="color:var(--text-1)">0.0s</b> — Out: <b id="trim-out-lbl" style="color:var(--text-1)">0.0s</b></span>
     </div>
+    <div id="trim-tools" aria-label="Trim options">
+      <span class="trim-tools-label">Edit selection</span>
+      <button class="trim-mode active" data-trim-mode="trim" type="button">1. Trim</button>
+      <button class="trim-mode" data-trim-mode="left" type="button">2. Trim + delete left</button>
+      <button class="trim-mode" data-trim-mode="right" type="button">3. Trim + delete right</button>
+      <span class="trim-mode-hint" id="trim-mode-hint">Keeps the selected range</span>
+    </div>
     <div id="timeline-wrap">
       <div id="ruler"></div>
       <div id="track">
         <div id="thumbs"></div>
+        <div id="timeline-empty">Drag media here to add it to the timeline</div>
         <div id="trim-shade-l"></div>
         <div id="trim-shade-r"></div>
         <div class="handle" id="handle-l"></div>
