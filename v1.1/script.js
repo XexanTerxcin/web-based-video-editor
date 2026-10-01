@@ -1064,7 +1064,7 @@ function renderTimelineClips(){
     track.appendChild(el);
     offset += duration;
   });
-  $('#timeline-empty').classList.add('hidden');
+  $('#timeline-empty').classList.toggle('hidden', state.timelineClips.length > 0);
   layoutTrim();
 }
 
@@ -1234,8 +1234,14 @@ $$('.trim-mode').forEach(button=>button.addEventListener('click', ()=>{
   if(!clip) return;
   state.trimMode = button.dataset.trimMode;
   $$('.trim-mode').forEach(control=>control.classList.toggle('active', control === button));
-  clip.sourceIn = state.trimIn;
-  clip.sourceOut = state.trimOut;
+  if(state.trimMode === 'trim'){
+    clip.sourceIn = state.trimIn;
+    clip.sourceOut = state.trimOut;
+  } else if(state.trimMode === 'left'){
+    clip.sourceIn = state.trimIn;
+  } else if(state.trimMode === 'right'){
+    clip.sourceOut = state.trimOut;
+  }
   state.trimIn = clip.sourceIn;
   state.trimOut = clip.sourceOut;
   video.currentTime = state.trimIn;
