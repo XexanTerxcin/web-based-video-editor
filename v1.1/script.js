@@ -760,6 +760,16 @@ $('#btn-fwd').addEventListener('click', ()=>{ if(state.videoLoaded) video.curren
 
 video.addEventListener('timeupdate', ()=>{
   if(state.playing && video.currentTime >= state.trimOut - 0.02){
+    const activeIndex = state.timelineClips.findIndex(clip=>clip.id===state.activeTimelineClipId);
+    const nextClip = state.timelineClips[activeIndex + 1];
+    if(nextClip){
+      const item = state.mediaLibrary.find(media=>media.id===nextClip.mediaId);
+      if(item){
+        state.activeTimelineClipId = nextClip.id;
+        loadTimelineSource(nextClip, item);
+        return;
+      }
+    }
     video.pause();
     video.currentTime = state.trimIn;
     state.playing = false;
@@ -981,7 +991,9 @@ $$('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     $$('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    $$('.tab-page').forEach(p=>p.style.display = (p.dataset.page===tab.dataset.tab) ? 'block' : 'none');
+    $$('.tab-page').forEach(p=>{
+      p.style.display = p.dataset.page===tab.dataset.tab ? (tab.dataset.tab === 'media' ? 'flex' : 'block') : 'none';
+    });
   });
 });
 
@@ -1059,6 +1071,7 @@ function loadTimelineSource(clip, item){
     renderTimelineClips();
     renderMarkers();
     renderKeyframes();
+    if(state.playing) video.play();
   }, {once:true});
 }
 
@@ -1464,6 +1477,11 @@ async function exportVideo(){
 }
 
 /* ---------------- Resize handling ---------------- */
-window.addEventListener('resize', ()=>{ window.addEventListener('resize', ()=>{ layoutTrim(); renderMarkers(); renderKeyframes(); }); });
+window.addEventListener('resize', ()=>{
+  if(state.timelineClips.length) renderTimelineClips();
+  layoutTrim();
+  renderMarkers();
+  renderKeyframes();
+});
 
 })();
