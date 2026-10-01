@@ -41,7 +41,9 @@ const state = {
   mediaLibrary:[],
   activeMediaId:null,
   replaceMediaPending:false,
-  timelineClip:null,
+  timelineClips:[],
+  activeTimelineClipId:null,
+  timelineZoom:1,
   trimMode:'trim',
   media:{
     fileName:'',
@@ -632,7 +634,8 @@ function deleteMediaItem(id){
   state.activeMediaId = state.mediaLibrary[0] ? state.mediaLibrary[0].id : null;
   if(!state.mediaLibrary.length){
     state.videoLoaded = false;
-    state.timelineClip = null;
+    state.timelineClips = [];
+    state.activeTimelineClipId = null;
     dropZone.classList.remove('hidden');
     $('#timeline-empty').classList.remove('hidden');
     $('#timeline-clip')?.remove();
@@ -669,7 +672,8 @@ $('#btn-clear-media').addEventListener('click', ()=>{
   state.mediaLibrary = [];
   state.activeMediaId = null;
   state.videoLoaded = false;
-  state.timelineClip = null;
+  state.timelineClips = [];
+  state.activeTimelineClipId = null;
   dropZone.classList.remove('hidden');
   $('#timeline-empty').classList.remove('hidden');
   $('#timeline-clip')?.remove();
@@ -720,32 +724,19 @@ $('#btn-media-preview-play').addEventListener('click', ()=>{
 
 function loadTimelineClip(item){
   if(!item || item.kind !== 'video') return;
-  state.timelineClip = {mediaId:item.id, name:item.name, duration:item.duration || 0};
-  video.pause();
-  video.src = item.url;
-  video.load();
-  video.addEventListener('loadedmetadata', function onMeta(){
-    video.removeEventListener('loadedmetadata', onMeta);
-    state.videoLoaded = true;
-    state.duration = video.duration;
-    state.trimIn = 0;
-    state.trimOut = video.duration;
-    const targetW = 1280;
-    const scale = targetW / video.videoWidth;
-    canvas.width = targetW;
-    canvas.height = Math.round(video.videoHeight * scale);
-    dropZone.classList.add('hidden');
-    $('#timeline-empty').classList.add('hidden');
-    $('#btn-export').disabled = false;
-    $('#hud-res').textContent = `${video.videoWidth}×${video.videoHeight}`;
-    $('#dur-time').textContent = fmtTime(video.duration);
-    renderTimelineClip(item);
-    generateThumbnails();
-    layoutTrim();
-    renderMarkers();
-    renderKeyframes();
-    toast(`${item.name} added to timeline`);
-  }, {once:true});
+  const clip = {
+    id:`timeline-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
+    mediaId:item.id,
+    name:item.name,
+    sourceIn:0,
+    sourceOut:item.duration || 0
+  };
+  state.timelineClips.push(clip);
+  state.activeTimelineClipId = clip.id;
+  dropZone.classList.add('hidden');
+  $('#timeline-empty').classList.add('hidden');
+  loadTimelineSource(clip, item);
+  toast(`${item.name} added to timeline`);
 }
 
 /* ---------------- Transport ---------------- */
@@ -786,8 +777,15 @@ function updateTimeUI(){
   if(!state.videoLoaded) return;
   $('#cur-time').textContent = fmtTime(video.currentTime);
   const track = $('#track');
-  const w = track.clientWidth;
-  const x = (video.currentTime/state.duration)*w;
+  const clip = getActiveTimelineClip();
+  if(!clip) return;
+  let offset = 0;
+  state.timelineClips.some(candidate=>{
+    if(candidate.id === clip.id) return true;
+    offset += Math.max(0, candidate.sourceOut - candidate.sourceIn);
+    return false;
+  });
+  const x = (offset + Math.max(0, video.currentTime - clip.sourceIn)) * timelineScale();
   $('#playhead').style.left = x+'px';
 }
 
@@ -994,14 +992,74 @@ const handleR = $('#handle-r');
 const shadeL = $('#trim-shade-l');
 const shadeR = $('#trim-shade-r');
 
-function renderTimelineClip(item){
-  $('#timeline-clip')?.remove();
-  const clip = document.createElement('div');
-  clip.id = 'timeline-clip';
-  clip.className = 'timeline-clip';
-  clip.innerHTML = `<span class="timeline-clip-label">${item.name}</span>`;
-  track.appendChild(clip);
+function setTimelineZoom(value){
+  state.timelineZoom = Math.min(4, Math.max(0.5, value));
+  $('#timeline-zoom-label').textContent = Math.round(state.timelineZoom * 100) + '%';
+  renderTimelineClips();
+  renderMarkers();
+  renderKeyframes();
+}
+$('#timeline-zoom-in').addEventListener('click', ()=>setTimelineZoom(state.timelineZoom + 0.25));
+$('#timeline-zoom-out').addEventListener('click', ()=>setTimelineZoom(state.timelineZoom - 0.25));
+
+function getActiveTimelineClip(){
+  return state.timelineClips.find(clip => clip.id === state.activeTimelineClipId) || null;
+}
+function timelineScale(){ return 80 * state.timelineZoom; }
+function renderTimelineClips(){
+  $$('.timeline-clip', track).forEach(clip=>clip.remove());
+  const content = $('#timeline-content');
+  const availableWidth = Math.max(0, $('#timeline-wrap').clientWidth - 32);
+  const totalDuration = state.timelineClips.reduce((sum, clip)=>sum + Math.max(0, clip.sourceOut - clip.sourceIn), 0);
+  const contentWidth = Math.max(availableWidth, totalDuration * timelineScale());
+  content.style.width = contentWidth + 'px';
+  const ruler = $('#ruler');
+  ruler.style.width = contentWidth + 'px';
+  track.style.width = contentWidth + 'px';
+  let offset = 0;
+  state.timelineClips.forEach(clip=>{
+    const duration = Math.max(0.2, clip.sourceOut - clip.sourceIn);
+    const el = document.createElement('div');
+    el.className = 'timeline-clip' + (clip.id === state.activeTimelineClipId ? ' active' : '');
+    el.dataset.id = clip.id;
+    el.style.left = (offset * timelineScale()) + 'px';
+    el.style.width = (duration * timelineScale()) + 'px';
+    el.innerHTML = `<span class="timeline-clip-label">${clip.name}</span>`;
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      const item = state.mediaLibrary.find(media=>media.id===clip.mediaId);
+      if(item){ state.activeTimelineClipId = clip.id; loadTimelineSource(clip, item); }
+    });
+    track.appendChild(el);
+    offset += duration;
+  });
   $('#timeline-empty').classList.add('hidden');
+  layoutTrim();
+}
+
+function loadTimelineSource(clip, item){
+  video.pause();
+  video.src = item.url;
+  video.load();
+  video.addEventListener('loadedmetadata', function onMeta(){
+    video.removeEventListener('loadedmetadata', onMeta);
+    state.videoLoaded = true;
+    state.duration = video.duration;
+    clip.sourceOut = Math.min(clip.sourceOut || video.duration, video.duration);
+    state.trimIn = clip.sourceIn;
+    state.trimOut = clip.sourceOut;
+    const targetW = 1280;
+    const scale = targetW / video.videoWidth;
+    canvas.width = targetW;
+    canvas.height = Math.round(video.videoHeight * scale);
+    $('#btn-export').disabled = false;
+    $('#hud-res').textContent = `${video.videoWidth}×${video.videoHeight}`;
+    $('#dur-time').textContent = fmtTime(video.duration);
+    generateThumbnails();
+    renderTimelineClips();
+    renderMarkers();
+    renderKeyframes();
+  }, {once:true});
 }
 
 track.addEventListener('dragover', e=>{
@@ -1027,27 +1085,36 @@ track.addEventListener('drop', e=>{
 
 $$('.trim-mode').forEach(button=>button.addEventListener('click', ()=>{
   if(!state.videoLoaded){ toast('Drag a video to the timeline first'); return; }
+  const clip = getActiveTimelineClip();
+  if(!clip) return;
   state.trimMode = button.dataset.trimMode;
   $$('.trim-mode').forEach(control=>control.classList.toggle('active', control === button));
-  if(state.trimMode === 'left'){
-    state.trimIn = 0;
-    video.currentTime = 0;
-    $('#trim-mode-hint').textContent = 'Deletes everything before the selected out point';
-  } else if(state.trimMode === 'right'){
-    state.trimOut = state.duration;
-    video.currentTime = state.trimOut;
-    $('#trim-mode-hint').textContent = 'Deletes everything after the selected in point';
-  } else {
-    $('#trim-mode-hint').textContent = 'Keeps the selected range';
-  }
+  clip.sourceIn = state.trimIn;
+  clip.sourceOut = state.trimOut;
+  state.trimIn = clip.sourceIn;
+  state.trimOut = clip.sourceOut;
+  video.currentTime = state.trimIn;
+  $('#trim-mode-hint').textContent = state.trimMode === 'trim' ? 'Keeps the selected range' :
+    state.trimMode === 'left' ? 'Left section deleted from this clip' : 'Right section deleted from this clip';
+  renderTimelineClips();
   layoutTrim();
 }));
 
 function layoutTrim(){
   if(!state.videoLoaded) return;
-  const w = track.clientWidth;
-  const xL = (state.trimIn/state.duration)*w;
-  const xR = (state.trimOut/state.duration)*w;
+  const clip = getActiveTimelineClip();
+  if(!clip) return;
+  let offset = 0;
+  state.timelineClips.some(candidate=>{
+    if(candidate.id === clip.id) return true;
+    offset += Math.max(0, candidate.sourceOut - candidate.sourceIn);
+    return false;
+  });
+  const scale = timelineScale();
+  const clipLeft = offset * scale;
+  const clipWidth = Math.max(0.2, clip.sourceOut - clip.sourceIn) * scale;
+  const xL = clipLeft + ((state.trimIn - clip.sourceIn) / Math.max(0.2, clip.sourceOut - clip.sourceIn)) * clipWidth;
+  const xR = clipLeft + ((state.trimOut - clip.sourceIn) / Math.max(0.2, clip.sourceOut - clip.sourceIn)) * clipWidth;
   handleL.style.left = xL+'px';
   handleR.style.left = (xR-10)+'px';
   shadeL.style.width = xL+'px';
@@ -1067,12 +1134,20 @@ function dragHandle(handle, isLeft){
     const move = (ev)=>{
       const rect = track.getBoundingClientRect();
       let x = Math.min(Math.max(ev.clientX-rect.left,0), rect.width);
-      let t = (x/rect.width)*state.duration;
+      const clip = getActiveTimelineClip();
+      if(!clip) return;
+      let offset = 0;
+      state.timelineClips.some(candidate=>{
+        if(candidate.id === clip.id) return true;
+        offset += Math.max(0, candidate.sourceOut - candidate.sourceIn);
+        return false;
+      });
+      let t = clip.sourceIn + (x - offset * timelineScale()) / timelineScale();
       if(isLeft){
-        state.trimIn = Math.min(t, state.trimOut-0.2);
+        state.trimIn = Math.min(Math.max(t, clip.sourceIn), state.trimOut-0.2);
         video.currentTime = state.trimIn;
       } else {
-        state.trimOut = Math.max(t, state.trimIn+0.2);
+        state.trimOut = Math.max(Math.min(t, clip.sourceOut), state.trimIn+0.2);
         video.currentTime = state.trimOut;
       }
       layoutTrim();
@@ -1093,7 +1168,21 @@ track.addEventListener('click', e=>{
   if(e.target===handleL || e.target===handleR) return;
   const rect = track.getBoundingClientRect();
   const x = e.clientX-rect.left;
-  const t = (x/rect.width)*state.duration;
+  const scale = timelineScale();
+  let offset = 0;
+  const clip = state.timelineClips.find(candidate=>{
+    const width = Math.max(0.2, candidate.sourceOut - candidate.sourceIn) * scale;
+    const inside = x >= offset * scale && x <= (offset * scale) + width;
+    if(!inside) offset += Math.max(0, candidate.sourceOut - candidate.sourceIn);
+    return inside;
+  });
+  if(!clip) return;
+  if(clip.id !== state.activeTimelineClipId){
+    const item = state.mediaLibrary.find(media=>media.id===clip.mediaId);
+    if(item){ state.activeTimelineClipId = clip.id; loadTimelineSource(clip, item); }
+    return;
+  }
+  const t = clip.sourceIn + (x - offset * scale) / scale;
   video.currentTime = Math.min(Math.max(t, state.trimIn), state.trimOut);
 });
 

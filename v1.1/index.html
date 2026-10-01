@@ -57,6 +57,7 @@
             </div>
           </div>
 
+          <div class="media-library-scroll">
           <div class="media-bin-heading">
             <span>Name</span>
             <span class="media-bin-sort">⌃</span>
@@ -89,6 +90,7 @@
             <div class="media-stat"><span>Size</span><strong id="media-size">—</strong></div>
             <div class="media-stat"><span>Resolution</span><strong id="media-resolution">—</strong></div>
             <div class="media-stat"><span>Duration</span><strong id="media-duration">—</strong></div>
+          </div>
           </div>
         </div>
 
@@ -206,6 +208,11 @@
       <button class="tp-btn" id="btn-fwd" title="5 seconds forward">⟳</button>
       <div id="time-readout"><b id="cur-time">00:00.0</b> / <span id="dur-time">00:00.0</span></div>
       <div class="transport-spacer"></div>
+      <div class="timeline-zoom-controls" aria-label="Timeline zoom">
+        <button class="zoom-btn" id="timeline-zoom-out" type="button" title="Zoom out">−</button>
+        <span id="timeline-zoom-label">100%</span>
+        <button class="zoom-btn" id="timeline-zoom-in" type="button" title="Zoom in">+</button>
+      </div>
       <span style="font-size:11px; color:var(--text-2);">In: <b id="trim-in-lbl" style="color:var(--text-1)">0.0s</b> — Out: <b id="trim-out-lbl" style="color:var(--text-1)">0.0s</b></span>
     </div>
     <div id="trim-tools" aria-label="Trim options">
@@ -216,15 +223,17 @@
       <span class="trim-mode-hint" id="trim-mode-hint">Keeps the selected range</span>
     </div>
     <div id="timeline-wrap">
-      <div id="ruler"></div>
-      <div id="track">
-        <div id="thumbs"></div>
-        <div id="timeline-empty">Drag media here to add it to the timeline</div>
-        <div id="trim-shade-l"></div>
-        <div id="trim-shade-r"></div>
-        <div class="handle" id="handle-l"></div>
-        <div class="handle" id="handle-r"></div>
-        <div id="playhead"></div>
+      <div id="timeline-content">
+        <div id="ruler"></div>
+        <div id="track">
+          <div id="thumbs"></div>
+          <div id="timeline-empty">Drag media here to add it to the timeline</div>
+          <div id="trim-shade-l"></div>
+          <div id="trim-shade-r"></div>
+          <div class="handle" id="handle-l"></div>
+          <div class="handle" id="handle-r"></div>
+          <div id="playhead"></div>
+        </div>
       </div>
     </div>
   </div>
