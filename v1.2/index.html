@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X-CUT Studio — Video Editor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     APP SHELL
+     ═══════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ── Top Menu Bar ─────────────────────────────────── -->
+  <header id="menubar">
+    <div class="menu-left">
+      <div id="brand"><span class="logo-dot"></span>X-CUT <em>Studio</em></div>
+      <nav class="menu-items">
+        <button class="menu-btn" data-menu="file">File</button>
+        <button class="menu-btn" data-menu="edit">Edit</button>
+        <button class="menu-btn" data-menu="view">View</button>
+        <button class="menu-btn" data-menu="export">Export</button>
+      </nav>
+    </div>
+    <div class="menu-center">
+      <button class="icon-btn" id="btn-undo" title="Undo (Ctrl+Z)">↺</button>
+      <button class="icon-btn" id="btn-redo" title="Redo (Ctrl+Y)">↻</button>
+      <span class="menu-divider"></span>
+      <button class="icon-btn" id="btn-split" title="Split clip (Ctrl+B)">✂</button>
+      <button class="icon-btn" id="btn-delete" title="Delete (Del)">🗑</button>
+    </div>
+    <div class="menu-right">
+      <button class="btn ghost" id="btn-save">Save</button>
+      <button class="btn primary" id="btn-export-top">Export</button>
+    </div>
+  </header>
+
+  <!-- ── Main Working Area ─────────────────────────────── -->
+  <main id="workspace">
+
+    <!-- ═══════ LEFT: MEDIA LIBRARY ═══════ -->
+    <aside id="library">
+      <div class="library-tabs">
+        <button class="lib-tab active" data-lib="media" title="Media">
+          <span>📁</span><small>Media</small>
+        </button>
+        <button class="lib-tab" data-lib="audio" title="Audio">
+          <span>🎵</span><small>Audio</small>
+        </button>
+        <button class="lib-tab" data-lib="text" title="Titles">
+          <span>T</span><small>Titles</small>
+        </button>
+        <button class="lib-tab" data-lib="transitions" title="Transitions">
+          <span>⇄</span><small>Trans</small>
+        </button>
+        <button class="lib-tab" data-lib="effects" title="Effects">
+          <span>✨</span><small>Effects</small>
+        </button>
+        <button class="lib-tab" data-lib="elements" title="Elements">
+          <span>◈</span><small>Elements</small>
+        </button>
+      </div>
+
+      <div class="library-body">
+        <!-- Media panel -->
+        <div class="lib-panel active" data-panel="media">
+          <div class="panel-toolbar">
+            <button class="mini-btn" id="lib-import" title="Import">＋ Import</button>
+            <button class="mini-btn" id="lib-new-folder" title="New folder">📁</button>
+            <button class="mini-btn" id="lib-delete" title="Delete selected">🗑</button>
+            <input type="search" class="search-input" id="lib-search" placeholder="Search…">
+          </div>
+          <div class="media-grid" id="media-grid">
+            <div class="empty-state" id="media-empty">
+              <div class="empty-icon">⬆</div>
+              <div class="empty-title">Import your media</div>
+              <div class="empty-sub">Drag &amp; drop files here, or click Import</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audio panel -->
+        <div class="lib-panel" data-panel="audio">
+          <div class="panel-toolbar">
+            <button class="mini-btn" id="audio-import">＋ Import audio</button>
+          </div>
+          <div class="media-grid" id="audio-grid"></div>
+        </div>
+
+        <!-- Titles panel -->
+        <div class="lib-panel" data-panel="text">
+          <div class="titles-grid" id="titles-grid"></div>
+        </div>
+
+        <!-- Transitions panel -->
+        <div class="lib-panel" data-panel="transitions">
+          <div class="transitions-grid" id="transitions-grid"></div>
+        </div>
+
+        <!-- Effects panel -->
+        <div class="lib-panel" data-panel="effects">
+          <div class="effects-grid" id="effects-grid"></div>
+        </div>
+
+        <!-- Elements panel -->
+        <div class="lib-panel" data-panel="elements">
+          <div class="effects-grid" id="elements-grid"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══════ CENTER: PREVIEW + INSPECTOR ═══════ -->
+    <section id="stage-wrap">
+      <div id="stage">
+        <div id="stage-inner">
+          <canvas id="preview-canvas" width="1280" height="720"></canvas>
+          <div id="overlay-layer"></div>
+        </div>
+      </div>
+
+      <div id="stage-toolbar">
+        <div class="tc-readout" id="timecode-readout">00:00:00:00</div>
+        <div class="spacer"></div>
+        <div class="zoom-group">
+          <button class="mini-btn" id="zoom-out" title="Zoom out preview">−</button>
+          <span id="preview-zoom-label">Fit</span>
+          <button class="mini-btn" id="zoom-in" title="Zoom in preview">+</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="resolution-label" id="resolution-label">— × —</div>
+      </div>
+    </section>
+
+    <!-- ═══════ RIGHT: INSPECTOR ═══════ -->
+    <aside id="inspector">
+      <div class="inspector-head">
+        <span id="inspector-title">No clip selected</span>
+      </div>
+      <div class="inspector-tabs">
+        <button class="insp-tab active" data-insp="video">Video</button>
+        <button class="insp-tab" data-insp="audio">Audio</button>
+        <button class="insp-tab" data-insp="color">Color</button>
+        <button class="insp-tab" data-insp="speed">Speed</button>
+        <button class="insp-tab" data-insp="animation">Animation</button>
+      </div>
+      <div class="inspector-body">
+
+        <div class="insp-panel active" data-panel="video">
+          <div class="prop-section">
+            <div class="prop-section-title">Transform</div>
+            <div class="prop-row">
+              <label>Scale</label>
+              <input type="range" id="p-scale" min="10" max="300" value="100">
+              <input type="number" class="num-input" id="p-scale-num" value="100">
+            </div>
+            <div class="prop-row">
+              <label>Position X</label>
+              <input type="range" id="p-posx" min="-100" max="100" value="0">
+              <input type="number" class="num-input" id="p-posx-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Position Y</label>
+              <input type="range" id="p-posy" min="-100" max="100" value="0">
+              <input type="number" class="num-input" id="p-posy-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Rotation</label>
+              <input type="range" id="p-rot" min="-180" max="180" value="0">
+              <input type="number" class="num-input" id="p-rot-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Opacity</label>
+              <input type="range" id="p-opacity" min="0" max="100" value="100">
+              <input type="number" class="num-input" id="p-opacity-num" value="100">
+            </div>
+          </div>
+
+          <div class="prop-section">
+            <div class="prop-section-title">Crop</div>
+            <div class="crop-grid">
+              <div><label>Top</label><input type="number" id="crop-top" value="0" min="0" max="49"></div>
+              <div><label>Bottom</label><input type="number" id="crop-bot" value="0" min="0" max="49"></div>
+              <div><label>Left</label><input type="number" id="crop-left" value="0" min="0" max="49"></div>
+              <div><label>Right</label><input type="number" id="crop-right" value="0" min="0" max="49"></div>
+            </div>
+          </div>
+
+          <div class="prop-section">
+            <div class="prop-section-title">Blend mode</div>
+            <select id="p-blend">
+              <option value="normal">Normal</option>
+              <option value="screen">Screen</option>
+              <option value="multiply">Multiply</option>
+              <option value="overlay">Overlay</option>
+              <option value="add">Add</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="insp-panel" data-panel="audio">
+          <div class="prop-section">
+            <div class="prop-section-title">Audio</div>
+            <div class="prop-row">
+              <label>Volume</label>
+              <input type="range" id="p-volume" min="0" max="200" value="100">
+              <input type="number" class="num-input" id="p-volume-num" value="100">
+            </div>
+            <div class="prop-row">
+              <label>Fade in (s)</label>
+              <input type="range" id="p-fade-in" min="0" max="5" step="0.1" value="0">
+              <input type="number" class="num-input" id="p-fade-in-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Fade out (s)</label>
+              <input type="range" id="p-fade-out" min="0" max="5" step="0.1" value="0">
+              <input type="number" class="num-input" id="p-fade-out-num" value="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="insp-panel" data-panel="color">
+          <div class="prop-section">
+            <div class="prop-section-title">Basic correction</div>
+            <div class="prop-row">
+              <label>Brightness</label>
+              <input type="range" id="c-brightness" min="-100" max="100" value="0">
+              <input type="number" class="num-input" id="c-brightness-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Contrast</label>
+              <input type="range" id="c-contrast" min="-100" max="100" value="0">
+              <input type="number" class="num-input" id="c-contrast-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Saturation</label>
+              <input type="range" id="c-saturation" min="-100" max="100" value="0">
+              <input type="number" class="num-input" id="c-saturation-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Hue</label>
+              <input type="range" id="c-hue" min="-180" max="180" value="0">
+              <input type="number" class="num-input" id="c-hue-num" value="0">
+            </div>
+            <div class="prop-row">
+              <label>Gamma</label>
+              <input type="range" id="c-gamma" min="30" max="300" value="100">
+              <input type="number" class="num-input" id="c-gamma-num" value="1.00" step="0.01">
+            </div>
+            <div class="prop-row">
+              <label>Vignette</label>
+              <input type="range" id="c-vignette" min="0" max="100" value="0">
+              <input type="number" class="num-input" id="c-vignette-num" value="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="insp-panel" data-panel="speed">
+          <div class="prop-section">
+            <div class="prop-section-title">Speed</div>
+            <div class="speed-presets">
+              <button class="speed-btn" data-speed="0.25">0.25x</button>
+              <button class="speed-btn" data-speed="0.5">0.5x</button>
+              <button class="speed-btn active" data-speed="1">1x</button>
+              <button class="speed-btn" data-speed="1.5">1.5x</button>
+              <button class="speed-btn" data-speed="2">2x</button>
+              <button class="speed-btn" data-speed="4">4x</button>
+            </div>
+            <div class="prop-row">
+              <label>Custom</label>
+              <input type="range" id="p-speed" min="25" max="400" value="100">
+              <input type="number" class="num-input" id="p-speed-num" value="1.00" step="0.05">
+            </div>
+            <label class="checkbox-row">
+              <input type="checkbox" id="p-reverse"> Reverse clip
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="p-preserve-pitch"> Preserve audio pitch
+            </label>
+          </div>
+        </div>
+
+        <div class="insp-panel" data-panel="animation">
+          <div class="prop-section">
+            <div class="prop-section-title">Keyframes</div>
+            <div class="kf-toolbar">
+              <button class="mini-btn" id="kf-add">＋ Add keyframe</button>
+              <button class="mini-btn" id="kf-prev">◀ Prev</button>
+              <button class="mini-btn" id="kf-next">Next ▶</button>
+            </div>
+            <div class="kf-list" id="kf-list"></div>
+          </div>
+          <div class="prop-section">
+            <div class="prop-section-title">Preset animations</div>
+            <div class="preset-grid">
+              <button class="preset-btn" data-preset="fadeIn">Fade In</button>
+              <button class="preset-btn" data-preset="fadeOut">Fade Out</button>
+              <button class="preset-btn" data-preset="slideLeft">Slide ←</button>
+              <button class="preset-btn" data-preset="slideRight">Slide →</button>
+              <button class="preset-btn" data-preset="zoomIn">Zoom In</button>
+              <button class="preset-btn" data-preset="zoomOut">Zoom Out</button>
+              <button class="preset-btn" data-preset="spin">Spin</button>
+              <button class="preset-btn" data-preset="bounce">Bounce</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ── Bottom: Multi-track Timeline ───────────────────── -->
+  <section id="timeline-wrap">
+
+    <!-- Transport bar -->
+    <div id="transport">
+      <button class="tp-btn" id="tp-start" title="Go to start (Home)">⏮</button>
+      <button class="tp-btn" id="tp-prev-frame" title="Previous frame (←)">◀|</button>
+      <button class="tp-btn" id="tp-play" title="Play/Pause (Space)">▶</button>
+      <button class="tp-btn" id="tp-next-frame" title="Next frame (→)">|▶</button>
+      <button class="tp-btn" id="tp-end" title="Go to end (End)">⏭</button>
+      <span class="tp-divider"></span>
+      <span class="tp-readout" id="tp-time">00:00.0</span>
+      <span class="tp-sep">/</span>
+      <span class="tp-readout dim" id="tp-duration">00:00.0</span>
+      <div class="transport-spacer"></div>
+      <div class="tool-group">
+        <button class="tl-tool active" data-tool="select" title="Select (V)">↖</button>
+        <button class="tl-tool" data-tool="razor" title="Razor (C)">✂</button>
+        <button class="tl-tool" data-tool="slip" title="Slip">⇄</button>
+        <button class="tl-tool" data-tool="hand" title="Hand">✋</button>
+      </div>
+      <span class="tp-divider"></span>
+      <button class="tl-tool toggle active" id="tl-snap" title="Toggle snapping">🧲 Snap</button>
+      <span class="tp-divider"></span>
+      <div class="zoom-ctl">
+        <button class="mini-btn" id="tl-zoom-out">−</button>
+        <input type="range" id="tl-zoom" min="10" max="400" value="80">
+        <button class="mini-btn" id="tl-zoom-in">＋</button>
+      </div>
+    </div>
+
+    <!-- Timeline lanes -->
+    <div id="timeline-scroll">
+      <div id="timeline-content">
+        <div id="track-headers"></div>
+        <div id="timeline-tracks">
+          <div id="ruler-row">
+            <div class="ruler-spacer"></div>
+            <div id="ruler" class="ruler"></div>
+          </div>
+          <div class="track-row" data-track="V2">
+            <div class="track-header" data-track="V2">
+              <span class="track-label">V2</span>
+              <button class="tc-btn" data-act="mute" title="Mute">M</button>
+              <button class="tc-btn" data-act="solo" title="Solo">S</button>
+              <button class="tc-btn" data-act="lock" title="Lock">🔒</button>
+              <button class="tc-btn" data-act="hide" title="Hide">👁</button>
+            </div>
+            <div class="track-lane" data-track="V2"></div>
+          </div>
+          <div class="track-row" data-track="V1">
+            <div class="track-header" data-track="V1">
+              <span class="track-label">V1</span>
+              <button class="tc-btn" data-act="mute" title="Mute">M</button>
+              <button class="tc-btn" data-act="solo" title="Solo">S</button>
+              <button class="tc-btn" data-act="lock" title="Lock">🔒</button>
+              <button class="tc-btn" data-act="hide" title="Hide">👁</button>
+            </div>
+            <div class="track-lane" data-track="V1"></div>
+          </div>
+          <div class="track-row" data-track="A1">
+            <div class="track-header" data-track="A1">
+              <span class="track-label">A1</span>
+              <button class="tc-btn" data-act="mute" title="Mute">M</button>
+              <button class="tc-btn" data-act="solo" title="Solo">S</button>
+              <button class="tc-btn" data-act="lock" title="Lock">🔒</button>
+            </div>
+            <div class="track-lane" data-track="A1"></div>
+          </div>
+          <div class="track-row" data-track="A2">
+            <div class="track-header" data-track="A2">
+              <span class="track-label">A2</span>
+              <button class="tc-btn" data-act="mute" title="Mute">M</button>
+              <button class="tc-btn" data-act="solo" title="Solo">S</button>
+              <button class="tc-btn" data-act="lock" title="Lock">🔒</button>
+            </div>
+            <div class="track-lane" data-track="A2"></div>
+          </div>
+        </div>
+        <div id="playhead" class="playhead"></div>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- ── File input ────────────────────────────────────── -->
+<input type="file" id="file-input" accept="video/*,audio/*,image/*" multiple>
+
+<!-- ── Modal (generic) ───────────────────────────────── -->
+<div id="modal" class="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-title">Title</h3>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────── -->
+<div id="toast" class="toast"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
